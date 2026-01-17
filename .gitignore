@@ -2,7 +2,6 @@
 gradle/
 build/
 
-.github/
 .claude/
 
 !**/src/main/**/build/
@@ -42,5 +41,3 @@ bin/
 
 ### Mac OS ###
 .DS_Store
-
-bridge/libs/HytaleServer.jar
