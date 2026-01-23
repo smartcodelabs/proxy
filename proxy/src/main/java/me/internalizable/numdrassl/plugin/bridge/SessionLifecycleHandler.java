@@ -7,6 +7,7 @@ import me.internalizable.numdrassl.api.event.server.ServerConnectedEvent;
 import me.internalizable.numdrassl.api.event.server.ServerPreConnectEvent;
 import me.internalizable.numdrassl.api.player.Player;
 import me.internalizable.numdrassl.api.server.RegisteredServer;
+import me.internalizable.numdrassl.cluster.NumdrasslClusterManager;
 import me.internalizable.numdrassl.config.BackendServer;
 import me.internalizable.numdrassl.event.api.NumdrasslEventManager;
 import me.internalizable.numdrassl.plugin.NumdrasslProxy;
@@ -20,6 +21,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.net.InetSocketAddress;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Handles session lifecycle events and fires corresponding API events.
@@ -77,7 +79,14 @@ public final class SessionLifecycleHandler {
     public void onSessionClosed(@Nonnull ProxySession session) {
         Objects.requireNonNull(session, "session");
 
-        Player player = createPlayer(session);
+        // Unregister player location from cluster
+        if (session.getPlayerUuid() != null) {
+            NumdrasslClusterManager clusterManager =
+                (NumdrasslClusterManager) proxy.getClusterManager();
+            clusterManager.unregisterPlayerLocation(session.getPlayerUuid());
+        }
+
+        Player player = getOrCreatePlayer(session);
         if (player != null) {
             // Remove player from their current server's player list
             removePlayerFromCurrentServer(session, player);
@@ -88,6 +97,27 @@ public final class SessionLifecycleHandler {
     }
 
     /**
+     * Sets up the player's permissions by firing PermissionSetupEvent.
+     * This should be called BEFORE the LoginEvent is fired.
+     *
+     * @param session the session
+     * @return a CompletableFuture containing the player, or completing with null on failure
+     */
+    @Nonnull
+    public CompletableFuture<Player> setupPlayerPermissions(@Nonnull ProxySession session) {
+        Objects.requireNonNull(session, "session");
+
+        // Get or create the cached player
+        NumdrasslPlayer player = (NumdrasslPlayer) getOrCreatePlayer(session);
+        if (player == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        // Set up permissions (fires PermissionSetupEvent and waits for async tasks)
+        return player.setupPermissions().thenApply(v -> player);
+    }
+
+    /**
      * Handles successful authentication (PostLogin).
      *
      * @param session the authenticated session
@@ -95,8 +125,15 @@ public final class SessionLifecycleHandler {
     public void onPostLogin(@Nonnull ProxySession session) {
         Objects.requireNonNull(session, "session");
 
-        Player player = createPlayer(session);
+        Player player = getOrCreatePlayer(session);
         if (player != null) {
+            // Register player location in cluster
+            if (session.getPlayerUuid() != null) {
+                NumdrasslClusterManager clusterManager =
+                    (NumdrasslClusterManager) proxy.getClusterManager();
+                clusterManager.registerPlayerLocation(session.getPlayerUuid());
+            }
+
             PostLoginEvent event = new PostLoginEvent(player);
             eventManager.fireSync(event);
         }
@@ -119,7 +156,7 @@ public final class SessionLifecycleHandler {
         Objects.requireNonNull(session, "session");
         Objects.requireNonNull(backend, "backend");
 
-        Player player = createPlayer(session);
+        Player player = getOrCreatePlayer(session);
         if (player == null) {
             return ServerPreConnectResult.allow(backend);
         }
@@ -167,7 +204,10 @@ public final class SessionLifecycleHandler {
 
         Objects.requireNonNull(session, "session");
 
-        Player player = createPlayer(session);
+        // Flush any pending messages now that player is connected
+        session.flushPendingMessages();
+
+        Player player = getOrCreatePlayer(session);
         RegisteredServer server = resolveServerFromSession(session);
 
         LOGGER.debug("Session {}: onServerConnected - player={}, server={}, serverName={}",
@@ -213,9 +253,18 @@ public final class SessionLifecycleHandler {
     }
 
     @Nullable
-    private Player createPlayer(ProxySession session) {
+    private Player getOrCreatePlayer(ProxySession session) {
+        // Check for cached player first
+        Player cached = session.getCachedPlayer();
+        if (cached != null) {
+            return cached;
+        }
+
+        // Create new player if identity is available
         if (session.getPlayerUuid() != null || session.getUsername() != null) {
-            return new NumdrasslPlayer(session, proxy);
+            NumdrasslPlayer player = new NumdrasslPlayer(session, proxy);
+            session.setCachedPlayer(player);
+            return player;
         }
         return null;
     }
