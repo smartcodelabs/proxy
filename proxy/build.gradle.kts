@@ -4,8 +4,8 @@ plugins {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 val nettyVersion = "4.1.114.Final"
@@ -51,6 +51,9 @@ dependencies {
 
     // Configuration (YAML)
     implementation("org.yaml:snakeyaml:2.2")
+
+    // Redis client (Lettuce - async, Netty-based)
+    implementation("io.lettuce:lettuce-core:7.2.1.RELEASE")
 
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.9")
