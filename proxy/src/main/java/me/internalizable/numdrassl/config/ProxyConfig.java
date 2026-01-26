@@ -53,6 +53,10 @@ public class ProxyConfig {
     private Boolean redisSsl = false;
     private int redisDatabase = 0;
 
+    // Metrics configuration
+    private boolean metricsEnabled = true;
+    private int metricsPort = 9090;
+    private int metricsLogIntervalSeconds = 60;
     private static SecureRandom SECRET_RANDOM = new SecureRandom();
 
     public ProxyConfig() {
@@ -173,7 +177,16 @@ public class ProxyConfig {
             writer.write("# Enable SSL/TLS for Redis connection\n");
             writer.write("redisSsl: " + redisSsl + "\n");
             writer.write("# Redis database index (0-15)\n");
-            writer.write("redisDatabase: " + redisDatabase + "\n");
+            writer.write("redisDatabase: " + redisDatabase + "\n\n");
+
+            // Metrics configuration
+            writer.write("# ==================== Metrics Configuration ====================\n\n");
+            writer.write("# Enable metrics collection and HTTP endpoint\n");
+            writer.write("metricsEnabled: " + metricsEnabled + "\n");
+            writer.write("# Port for metrics HTTP server (Prometheus scrape endpoint)\n");
+            writer.write("metricsPort: " + metricsPort + "\n");
+            writer.write("# Interval for logging metrics summary (0 to disable)\n");
+            writer.write("metricsLogIntervalSeconds: " + metricsLogIntervalSeconds + "\n");
         }
     }
 
@@ -457,12 +470,19 @@ public class ProxyConfig {
         this.redisSsl = redisSsl;
     }
 
-    public int getRedisDatabase() {
-        return redisDatabase;
-    }
+    public int getRedisDatabase() { return redisDatabase; }
+    public void setRedisDatabase(int redisDatabase) { this.redisDatabase = redisDatabase; }
 
-    public void setRedisDatabase(int redisDatabase) {
-        this.redisDatabase = redisDatabase;
-    }
+    // ==================== Metrics Getters/Setters ====================
+
+    public boolean isMetricsEnabled() { return metricsEnabled; }
+    public void setMetricsEnabled(boolean metricsEnabled) { this.metricsEnabled = metricsEnabled; }
+
+    public int getMetricsPort() { return metricsPort; }
+    public void setMetricsPort(int metricsPort) { this.metricsPort = metricsPort; }
+
+    public int getMetricsLogIntervalSeconds() { return metricsLogIntervalSeconds; }
+    public void setMetricsLogIntervalSeconds(int metricsLogIntervalSeconds) { this.metricsLogIntervalSeconds = metricsLogIntervalSeconds; }
+
 }
 

@@ -21,6 +21,7 @@ import me.internalizable.numdrassl.event.packet.ProxyPong;
 import me.internalizable.numdrassl.pipeline.BackendPacketHandler;
 import me.internalizable.numdrassl.pipeline.codec.ProxyPacketDecoder;
 import me.internalizable.numdrassl.pipeline.codec.ProxyPacketEncoder;
+import me.internalizable.numdrassl.profiling.ProxyMetrics;
 import me.internalizable.numdrassl.api.chat.ChatMessageBuilder;
 import me.internalizable.numdrassl.session.ProxySession;
 import me.internalizable.numdrassl.session.SessionState;
@@ -307,6 +308,7 @@ public final class BackendConnector {
         LOGGER.info("Session {}: Connected to backend {} QUIC channel",
             session.getSessionId(), backend.getName());
         session.setBackendChannel(quicChannel);
+        ProxyMetrics.getInstance().recordBackendConnection(backend.getName());
 
         createBackendStream(session, quicChannel, backend, connectPacket, isReconnect, debugMode);
     }
@@ -357,6 +359,7 @@ public final class BackendConnector {
     }
 
     private void handleConnectionFailure(ProxySession session, String serverName, boolean isReconnect) {
+        ProxyMetrics.getInstance().recordBackendConnectionFailure(serverName);
         if (isReconnect) {
             sendTransferFailedMessage(session, serverName);
         } else {
