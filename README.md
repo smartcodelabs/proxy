@@ -330,6 +330,15 @@ redisDatabase: 0
 
 Each backend server requires the Bridge plugin with matching `proxySecret`.
 
+### Proxy: Supported Environment Variables
+
+The Proxy supports the following environment variables:
+
+| Environment Variable   | Description                                       |
+|------------------------|---------------------------------------------------|
+| `NUMDRASSL_SECRET`     | Overrides the secret from the proxy config. |
+
+
 ### Cluster Configuration Notes
 
 > ⚠️ **Important Security Warnings:**
@@ -385,7 +394,7 @@ The plugin JAR is at: `bridge/build/libs/bridge-1.0-SNAPSHOT.jar`
 
 ### 2. Install on Backend Server
 
-Copy `bridge-1.0-SNAPSHOT.jar` to your Hytale server's `plugins/` directory.
+Copy `bridge-1.0-SNAPSHOT.jar` to your Hytale server's `mods/` directory.
 
 ### 3. Start Backend in Insecure Mode
 
@@ -415,6 +424,15 @@ Block direct connections to your backend server from the internet. Only allow co
 iptables -A INPUT -p udp --dport 5520 -s 192.168.1.50 -j ACCEPT
 iptables -A INPUT -p udp --dport 5520 -j DROP
 ```
+
+### Bridge: Supported Environment Variables
+
+The Bridge plugin supports the following environment variables:
+
+| Environment Variable   | Description |
+|------------------------|-------------|
+| `NUMDRASSL_SERVERNAME` | Overrides the serverName from the Bridge config. |
+| `NUMDRASSL_SECRET`     | Overrides the shared secret from the Bridge config. |
 
 ---
 
@@ -826,14 +844,54 @@ Output locations:
 
 ## Console Commands
 
-| Command | Description |
-|---------|-------------|
+| Command      | Description                            |
+|--------------|----------------------------------------|
 | `auth login` | Start OAuth device flow authentication |
 | `auth status` | Show current authentication status |
 | `auth logout` | Clear stored credentials |
 | `sessions` | List all connected sessions |
+| `metrics` | Show current performance metrics |
+| `metrics history` | Show historical averages |
+| `metrics peaks` | Show all-time peak values |
+| `metrics memory` | Show detailed memory statistics |
+| `metrics gc` | Trigger garbage collection |
+| `metrics report` | Generate shareable report |
 | `stop` | Gracefully shut down the proxy |
 | `help` | Show available commands |
+| `server`     | List all registered backend servers    |
+
+---
+
+## Monitoring & Profiling
+
+Numdrassl includes a built-in profiling system with HTTP endpoints:
+
+| Endpoint | URL | Description |
+|----------|-----|-------------|
+| Dashboard | http://localhost:9090/stats | Real-time HTML dashboard |
+| History | http://localhost:9090/history | Historical data & peaks |
+| Prometheus | http://localhost:9090/metrics | Prometheus scrape endpoint |
+| Report | http://localhost:9090/report | Shareable text report |
+| Health | http://localhost:9090/health | Health check (JSON) |
+
+### Key Metrics
+
+- **Sessions**: Active connections, accepted/closed counts
+- **Throughput**: Real-time packets/sec and bytes/sec
+- **Response Times**: Average response time, hanging request detection
+- **Historical Data**: Peak values, period averages (5min, 30min, 1hr)
+- **Memory**: JVM heap usage, GC stats
+- **Errors**: Auth failures, backend connection failures
+
+### Configuration
+
+```yaml
+metricsEnabled: true
+metricsPort: 9090
+metricsLogIntervalSeconds: 60
+```
+
+See [Profiling Guide](docs/PROFILING.md) for detailed documentation.
 
 ---
 
@@ -874,6 +932,7 @@ Enable `debugMode: true` in config for verbose packet logging.
 - [Event Architecture](docs/EVENT_ARCHITECTURE.md) - Internal event system details
 - [Cluster & Messaging](docs/CLUSTER_MESSAGING_ARCHITECTURE.md) - Multi-proxy cluster and Redis messaging
 - [Authentication Architecture](docs/AUTHENTICATION_ARCHITECTURE.md) - Auth flow documentation
+- [Profiling Guide](docs/PROFILING.md) - Monitoring, metrics, and performance troubleshooting
 
 ---
 
