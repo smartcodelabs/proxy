@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import java.nio.channels.ClosedChannelException;
 import java.util.List;
 import java.util.Objects;
 
@@ -189,7 +190,7 @@ public final class PacketSender {
     // ==================== Internal ====================
 
     private boolean sendToStream(QuicStreamChannel stream, Object message, String target) {
-        if (stream == null || !stream.isActive()) {
+        if (stream == null || !stream.isActive() || !stream.isOpen()) {
             LOGGER.warn("Session {}: Cannot send to {} - stream not active", sessionId, target);
             releaseIfByteBuf(message);
             return false;
@@ -214,8 +215,15 @@ public final class PacketSender {
     }
 
     private void doWrite(QuicStreamChannel stream, Object message, String target) {
+        if (!stream.isOpen()) {
+            LOGGER.warn("Session {}: Failed to send to {}: {}", sessionId, target, "Stream is closed");
+        }
         stream.writeAndFlush(message).addListener(future -> {
             if (!future.isSuccess()) {
+                if (future.cause() instanceof ClosedChannelException) {
+                    // suppress closed channel spam, after close / fallback
+                    return;
+                }
                 LOGGER.warn("Session {}: Failed to send to {}", sessionId, target, future.cause());
             }
         });

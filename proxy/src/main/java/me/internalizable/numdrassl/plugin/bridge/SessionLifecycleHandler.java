@@ -6,6 +6,8 @@ import me.internalizable.numdrassl.api.event.connection.PostLoginEvent;
 import me.internalizable.numdrassl.api.event.connection.PreLoginEvent;
 import me.internalizable.numdrassl.api.event.player.PlayerChooseInitialServerEvent;
 import me.internalizable.numdrassl.api.event.server.ServerConnectedEvent;
+import me.internalizable.numdrassl.api.event.server.ServerDisconnectedEvent;
+import me.internalizable.numdrassl.api.event.server.ServerDisconnectedResult;
 import me.internalizable.numdrassl.api.event.server.ServerPreConnectEvent;
 import me.internalizable.numdrassl.api.player.Player;
 import me.internalizable.numdrassl.api.server.RegisteredServer;
@@ -311,6 +313,30 @@ public final class SessionLifecycleHandler {
         }
     }
 
+    public ServerDisconnectedResult onServerDisconnected(
+            @Nonnull ProxySession session,
+            String disconnectReason
+    ) {
+        Objects.requireNonNull(session, "session");
+
+        Player player = getOrCreatePlayer(session);
+        RegisteredServer server = resolveServerFromSession(session);
+
+        LOGGER.debug("Session {}: onServerDisconnected - player={}, server={}, serverName={}",
+                session.getSessionId(),
+                player != null ? player.getUsername() : "null",
+                server != null ? server.getName() : "null",
+                session.getCurrentServerName());
+
+        if (player != null && server != null) {
+            ServerDisconnectedEvent event = new ServerDisconnectedEvent(player, server, disconnectReason);
+            eventManager.fireSync(event);
+
+            return event.getResult();
+        }
+
+        return null;
+    }
     /**
      * Determines the initial backend server for a proxy session by firing
      * a {@link PlayerChooseInitialServerEvent}.
