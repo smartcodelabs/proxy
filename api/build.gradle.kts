@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "me.internalizable.numdrassl"
-version = "1.0.1"  // API version - independent of proxy version
+version = "1.2"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
