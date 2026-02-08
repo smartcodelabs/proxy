@@ -66,7 +66,7 @@ public final class ProxyCore {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyCore.class);
 
     private static final String[] ALPN_PROTOCOLS = {
-        "hytale/2", "hytale/1"
+        "hytale/3", "hytale/2", "hytale/1"
     };
 
     // Configuration
