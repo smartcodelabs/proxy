@@ -7,7 +7,7 @@ import me.internalizable.numdrassl.api.player.TransferResult;
 import me.internalizable.numdrassl.config.BackendServer;
 import me.internalizable.numdrassl.plugin.bridge.PlayerTransferBridgeResult;
 import me.internalizable.numdrassl.server.ProxyCore;
-import me.internalizable.numdrassl.server.health.BackendHealthCache;
+import me.internalizable.numdrassl.server.health.BackendHealthManager;
 import me.internalizable.numdrassl.session.ProxySession;
 import me.internalizable.numdrassl.session.SessionState;
 import org.slf4j.Logger;
@@ -66,9 +66,6 @@ public final class PlayerTransfer {
             if (message != null) {
                 session.sendChatMessage(message);
             }
-        if (proxyCore.getBackendHealthManager() == null) {
-            return CompletableFuture.completedFuture(TransferResult.failure("Internal error: backend health manager not initialized"));
-        }
 
             return CompletableFuture.completedFuture(TransferResult.failure(message != null ? message.toPlainText() : "No reason provided"));
         }
@@ -79,14 +76,6 @@ public final class PlayerTransfer {
 
         // Check backend health before transfer
         return checkBackendAndTransfer(session, finalTarget);
-        return proxyCore.getBackendHealthManager().sendPingAsync(targetBackend, 1500).thenApply(ok -> {
-            if (!ok) {
-                LOGGER.warn("Backend ({}) did not respond in time", targetBackend.getName());
-                return TransferResult.failure("Server is offline!");
-            }
-
-            return executeTransfer(session, targetBackend);
-        });
     }
 
     /**
@@ -132,15 +121,15 @@ public final class PlayerTransfer {
             ProxySession session,
             BackendServer targetBackend) {
 
-        BackendHealthCache cache = proxyCore.getBackendHealthCache();
-        if (cache == null) {
+        BackendHealthManager healthManager = proxyCore.getBackendHealthManager();
+        if (healthManager == null) {
             return CompletableFuture.completedFuture(
-                    TransferResult.failure("Internal error: backend health cache not initialized")
+                    TransferResult.failure("Internal error: backend health manager not initialized")
             );
         }
 
-        return cache
-                .get(targetBackend, () -> proxyCore.getBackendConnector().checkBackendAlive(targetBackend, 1500))
+        return healthManager
+                .sendPingAsync(targetBackend, 1500)
                 .thenApply(alive -> {
                     if (!alive) {
                         LOGGER.warn("Session {}: Backend {} is offline",
