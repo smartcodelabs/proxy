@@ -5,6 +5,8 @@ import me.internalizable.numdrassl.api.event.connection.AsyncLoginEvent;
 import me.internalizable.numdrassl.api.event.connection.DisconnectEvent;
 import me.internalizable.numdrassl.api.event.connection.PostLoginEvent;
 import me.internalizable.numdrassl.api.event.connection.PreLoginEvent;
+import me.internalizable.numdrassl.api.event.player.PlayerChooseInitialServerEvent;
+import me.internalizable.numdrassl.api.event.player.PlayerTransferEvent;
 import me.internalizable.numdrassl.api.event.server.ServerConnectedEvent;
 import me.internalizable.numdrassl.api.event.server.ServerDisconnectedEvent;
 import me.internalizable.numdrassl.api.event.server.ServerDisconnectedResult;
