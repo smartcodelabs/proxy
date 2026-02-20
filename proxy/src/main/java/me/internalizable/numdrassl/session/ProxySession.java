@@ -14,6 +14,7 @@ import me.internalizable.numdrassl.api.chat.ChatMessageBuilder;
 import me.internalizable.numdrassl.api.player.Player;
 import me.internalizable.numdrassl.auth.CertificateExtractor;
 import me.internalizable.numdrassl.config.BackendServer;
+import me.internalizable.numdrassl.pipeline.handler.UniStreamRelay;
 import me.internalizable.numdrassl.server.ProxyCore;
 import me.internalizable.numdrassl.server.network.ChatMessageConverter;
 import me.internalizable.numdrassl.session.auth.SessionAuthState;
@@ -82,6 +83,9 @@ public final class ProxySession {
 
     private volatile boolean backendAvailable = true;
 
+    // Relay for server-initiated backend unidirectional streams (chunks, world map, etc.)
+    private final UniStreamRelay uniStreamRelay;
+
     // ==================== Construction ====================
 
     public ProxySession(@Nonnull ProxyCore proxyCore, @Nonnull QuicChannel clientChannel) {
@@ -94,6 +98,7 @@ public final class ProxySession {
         this.channels = new SessionChannels(id, clientChannel);
         this.authState = new SessionAuthState();
         this.packetSender = new PacketSender(id, channels);
+        this.uniStreamRelay = new UniStreamRelay(this);
 
         extractCertificate(clientChannel);
     }
@@ -218,6 +223,11 @@ public final class ProxySession {
     @Nonnull
     public ProxyCore getProxyCore() {
         return proxyCore;
+    }
+
+    @Nonnull
+    public UniStreamRelay getUniStreamRelay() {
+        return uniStreamRelay;
     }
 
     @Nonnull
@@ -469,6 +479,7 @@ public final class ProxySession {
         LOGGER.info("Session {} disconnecting: {}", id, reason);
 
         state.set(SessionState.DISCONNECTED);
+        uniStreamRelay.release();
 
         QuicStreamChannel stream = channels.clientStream();
         if (stream != null && stream.isActive()) {
@@ -486,6 +497,7 @@ public final class ProxySession {
      */
     public void close() {
         state.set(SessionState.DISCONNECTED);
+        uniStreamRelay.release();
         channels.closeAll();
     }
 
