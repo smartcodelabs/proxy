@@ -31,6 +31,7 @@ A BungeeCord/Velocity-style proxy server for Hytale, built using Netty QUIC. All
 
 ### Core Functionality
 - **QUIC Protocol Support** - Native QUIC transport with BBR congestion control for low-latency connections
+- **Multi-Channel Streaming** - Full support for Hytale's multi-channel architecture (Default, Chunks, WorldMap) via transparent unidirectional stream forwarding
 - **Multi-Backend Support** - Route players to different backend servers (lobby, minigames, etc.)
 - **Player Transfer** - Seamless server switching via `/server` command or backend-initiated transfers
 - **Backend-Initiated Transfers** - Backend servers can transfer players using the native Hytale `PlayerRef.referToServer()` API
@@ -1262,6 +1263,28 @@ Each release includes:
 - `proxy-*.jar` - Main proxy server
 - `api-*.jar` - Plugin API for developers
 - `bridge-*.jar` - Backend server plugin
+
+---
+
+## Version History
+
+### v1.6 — Hytale Update 3 Support (2026-02-20)
+- **Multi-Channel Streaming** — Full support for Hytale's new multi-channel QUIC architecture (Default, Chunks, WorldMap). Backend unidirectional streams are transparently forwarded to the client with correct stream ordering.
+- **PacketRegistry Update** — Updated `Connect` packet metadata (fixedBlockSize 82→46, maxSize 38161→38013) and removed deprecated `Status` packet (ID 10) to match server build `2026.02.17-255364b8e`.
+- **Improved Auth Diagnostics** — Enhanced error logging in `ClientAuthHandler.exchangeServerAuthGrant()` to report HTTP status codes and response bodies on failure.
+- **UniStreamForwarder** — New transparent byte forwarder for server-initiated unidirectional QUIC streams with backpressure buffering (up to 10 MB) and ordered client-side stream creation.
+- **SessionChannels** — Extended to manage unidirectional streams alongside bidirectional ones, with proper lifecycle cleanup.
+
+### v1.5 — Working Server Portals
+- Backend-initiated player transfers via native Hytale `PlayerRef.referToServer()` API
+- Fallback support for backend failures
+- Improved command system with permissions
+- `PlayerChooseInitialServerEvent` for plugin-driven initial server selection
+
+### v1.4 — Event System & Profiling
+- Async login support via `AsyncLoginEvent`
+- Profiling and metrics subsystem with HTTP endpoints
+- Backend health monitoring
 
 ---
 

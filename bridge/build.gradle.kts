@@ -7,13 +7,14 @@ group = "me.internalizable.numdrassl"
 version = rootProject.version
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
     // No javadoc/sources jars for bridge plugin - it's a runtime artifact only
 }
 
 repositories {
     mavenCentral()
+
 }
 
 dependencies {

@@ -75,7 +75,15 @@ public final class ClientAuthHandler {
     public CompletableFuture<String> exchangeServerAuthGrant(@Nonnull String serverAuthGrant) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                if (!sessionManager.isAuthenticated() || proxyFingerprint == null) return null;
+                if (!sessionManager.isAuthenticated()) {
+                    LOGGER.error("Cannot exchange server auth grant: proxy not authenticated");
+                    return null;
+                }
+                if (proxyFingerprint == null) {
+                    LOGGER.error("Cannot exchange server auth grant: proxyFingerprint is null");
+                    return null;
+                }
+                LOGGER.debug("Exchanging server auth grant with fingerprint: {}", proxyFingerprint);
                 JsonObject body = new JsonObject();
                 body.addProperty("authorizationGrant", serverAuthGrant);
                 body.addProperty("x509Fingerprint", proxyFingerprint);
@@ -91,8 +99,14 @@ public final class ClientAuthHandler {
                 HttpResponse<String> res = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
                 if (res.statusCode() == 200) {
                     var at = JsonParser.parseString(res.body()).getAsJsonObject().get("accessToken");
-                    return at != null ? at.getAsString() : null;
+                    if (at != null) {
+                        LOGGER.info("Successfully exchanged server auth grant");
+                        return at.getAsString();
+                    }
+                    LOGGER.error("Exchange response missing accessToken field: {}", res.body());
+                    return null;
                 }
+                LOGGER.error("Failed to exchange server auth grant: HTTP {} - {}", res.statusCode(), res.body());
                 return null;
             } catch (Exception e) { LOGGER.error("Error exchanging server auth grant", e); return null; }
         });
