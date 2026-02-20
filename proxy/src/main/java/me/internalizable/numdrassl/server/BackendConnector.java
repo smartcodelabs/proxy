@@ -265,6 +265,7 @@ public final class BackendConnector {
                 .initialMaxData(10_000_000)
                 .initialMaxStreamDataBidirectionalLocal(1_000_000)
                 .initialMaxStreamDataBidirectionalRemote(1_000_000)
+                .initialMaxStreamDataUnidirectional(1_000_000)
                 .initialMaxStreamsBidirectional(100)
                 .initialMaxStreamsUnidirectional(100)
                 .build();
@@ -312,9 +313,16 @@ public final class BackendConnector {
         return new ChannelInitializer<>() {
             @Override
             protected void initChannel(QuicStreamChannel ch) {
-                ch.pipeline().addLast(new ProxyPacketDecoder("backend-server", debugMode));
-                ch.pipeline().addLast(new ProxyPacketEncoder("backend-server", debugMode));
-                ch.pipeline().addLast(new BackendPacketHandler(proxyCore, session));
+                if (ch.type() == QuicStreamType.UNIDIRECTIONAL && !ch.isLocalCreated()) {
+                    // Server-initiated unidirectional stream (chunks, world map, etc.):
+                    // forward bytes transparently via the UniStreamRelay — no packet decoding.
+                    ch.pipeline().addLast(new me.internalizable.numdrassl.pipeline.handler.BackendUniStreamForwarder(
+                            session.getUniStreamRelay()));
+                } else {
+                    ch.pipeline().addLast(new ProxyPacketDecoder("backend-server", debugMode));
+                    ch.pipeline().addLast(new ProxyPacketEncoder("backend-server", debugMode));
+                    ch.pipeline().addLast(new BackendPacketHandler(proxyCore, session));
+                }
             }
         };
     }
