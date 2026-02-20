@@ -12,7 +12,6 @@ import com.hypixel.hytale.protocol.packets.auth.PasswordAccepted;
 import com.hypixel.hytale.protocol.packets.auth.PasswordRejected;
 import com.hypixel.hytale.protocol.packets.auth.PasswordResponse;
 import com.hypixel.hytale.protocol.packets.auth.ServerAuthToken;
-import com.hypixel.hytale.protocol.packets.auth.Status;
 import com.hypixel.hytale.protocol.packets.connection.Connect;
 import com.hypixel.hytale.protocol.packets.connection.Disconnect;
 import com.hypixel.hytale.protocol.packets.connection.Ping;
@@ -64,11 +63,10 @@ public final class PacketRegistry {
     }
 
     static {
-        PacketRegistry.register(0, "Connect", Connect.class, 82, 38161, false, Connect::validateStructure, Connect::deserialize);
+        PacketRegistry.register(0, "Connect", Connect.class, 46, 38013, false, Connect::validateStructure, Connect::deserialize);
         PacketRegistry.register(1, "Disconnect", Disconnect.class, 2, 16384007, false, Disconnect::validateStructure, Disconnect::deserialize);
         PacketRegistry.register(2, "Ping", Ping.class, 29, 29, false, Ping::validateStructure, Ping::deserialize);
         PacketRegistry.register(3, "Pong", Pong.class, 20, 20, false, Pong::validateStructure, Pong::deserialize);
-        PacketRegistry.register(10, "Status", Status.class, 9, 2587, false, Status::validateStructure, Status::deserialize);
         PacketRegistry.register(11, "AuthGrant", AuthGrant.class, 1, 49171, false, AuthGrant::validateStructure, AuthGrant::deserialize);
         PacketRegistry.register(12, "AuthToken", AuthToken.class, 1, 49171, false, AuthToken::validateStructure, AuthToken::deserialize);
         PacketRegistry.register(13, "ServerAuthToken", ServerAuthToken.class, 1, 32851, false, ServerAuthToken::validateStructure, ServerAuthToken::deserialize);

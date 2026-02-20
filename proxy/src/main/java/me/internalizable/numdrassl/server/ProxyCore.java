@@ -265,8 +265,9 @@ public final class ProxyCore {
             .initialMaxData(10_000_000)
             .initialMaxStreamDataBidirectionalLocal(1_000_000)
             .initialMaxStreamDataBidirectionalRemote(1_000_000)
+            .initialMaxStreamDataUnidirectional(0)
             .initialMaxStreamsBidirectional(100)
-            .initialMaxStreamsUnidirectional(100)
+            .initialMaxStreamsUnidirectional(0)
             .tokenHandler(InsecureQuicTokenHandler.INSTANCE)
             .handler(new ChannelInitializer<QuicChannel>() {
                 @Override

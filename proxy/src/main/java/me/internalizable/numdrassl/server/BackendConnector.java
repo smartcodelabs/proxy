@@ -19,6 +19,7 @@ import me.internalizable.numdrassl.config.BackendServer;
 import me.internalizable.numdrassl.event.packet.ProxyPing;
 import me.internalizable.numdrassl.event.packet.ProxyPong;
 import me.internalizable.numdrassl.pipeline.BackendPacketHandler;
+import me.internalizable.numdrassl.pipeline.UniStreamForwarder;
 import me.internalizable.numdrassl.pipeline.codec.ProxyPacketDecoder;
 import me.internalizable.numdrassl.pipeline.codec.ProxyPacketEncoder;
 import me.internalizable.numdrassl.api.event.server.ServerDisconnectedResult;
@@ -26,6 +27,7 @@ import me.internalizable.numdrassl.profiling.ProxyMetrics;
 import me.internalizable.numdrassl.api.chat.ChatMessageBuilder;
 import me.internalizable.numdrassl.session.ProxySession;
 import me.internalizable.numdrassl.session.SessionState;
+import me.internalizable.numdrassl.session.channel.SessionChannels;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -265,6 +267,7 @@ public final class BackendConnector {
                 .initialMaxData(10_000_000)
                 .initialMaxStreamDataBidirectionalLocal(1_000_000)
                 .initialMaxStreamDataBidirectionalRemote(1_000_000)
+                .initialMaxStreamDataUnidirectional(1_000_000)
                 .initialMaxStreamsBidirectional(100)
                 .initialMaxStreamsUnidirectional(100)
                 .build();
@@ -312,11 +315,84 @@ public final class BackendConnector {
         return new ChannelInitializer<>() {
             @Override
             protected void initChannel(QuicStreamChannel ch) {
+                long streamId = ch.streamId();
+
+                // Server-initiated unidirectional streams (Chunks, WorldMap)
+                if (!ch.isLocalCreated() && ch.type() == QuicStreamType.UNIDIRECTIONAL) {
+                    LOGGER.info("Session {}: Backend initiated uni-stream {} — setting up raw forwarder",
+                            session.getSessionId(), streamId);
+                    handleBackendUniStream(session, ch, streamId);
+                    return;
+                }
+
+                // Normal bidirectional stream — standard packet pipeline
                 ch.pipeline().addLast(new ProxyPacketDecoder("backend-server", debugMode));
                 ch.pipeline().addLast(new ProxyPacketEncoder("backend-server", debugMode));
                 ch.pipeline().addLast(new BackendPacketHandler(proxyCore, session));
             }
         };
+    }
+
+    /**
+     * Handles a backend-initiated unidirectional stream.
+     * Buffers all incoming streams until the expected count is reached,
+     * then creates client-side uni-streams sorted by backend stream ID
+     * to preserve the correct NetworkChannel mapping.
+     */
+    private void handleBackendUniStream(ProxySession session, QuicStreamChannel ch, long streamId) {
+        UniStreamForwarder forwarder = new UniStreamForwarder(session.getSessionId(), streamId);
+        ch.pipeline().addLast(forwarder);
+
+        boolean allReady = session.getChannels().addBackendUniStream(streamId, ch, forwarder);
+        if (allReady) {
+            LOGGER.info("Session {}: All expected uni-streams received, creating client-side streams",
+                    session.getSessionId());
+            createClientUniStreams(session);
+        }
+    }
+
+    /**
+     * Creates client-side unidirectional streams matching the backend's creation order.
+     * Sorted by ascending backend stream ID to ensure correct NetworkChannel assignment.
+     */
+    private void createClientUniStreams(ProxySession session) {
+        var sortedEntries = session.getChannels().getSortedBackendUniStreams();
+        QuicChannel clientChannel = session.getChannels().clientChannel();
+
+        createClientUniStreamSequential(session, clientChannel, sortedEntries, 0);
+    }
+
+    private void createClientUniStreamSequential(
+            ProxySession session,
+            QuicChannel clientChannel,
+            java.util.List<SessionChannels.UniStreamEntry> entries,
+            int index) {
+
+        if (index >= entries.size()) {
+            LOGGER.info("Session {}: All {} client uni-streams created successfully",
+                    session.getSessionId(), entries.size());
+            return;
+        }
+
+        var entry = entries.get(index);
+        clientChannel.createStream(QuicStreamType.UNIDIRECTIONAL, new ChannelInitializer<QuicStreamChannel>() {
+            @Override
+            protected void initChannel(QuicStreamChannel clientStream) {
+                LOGGER.info("Session {}: Created client uni-stream {} (for backend stream {})",
+                        session.getSessionId(), clientStream.streamId(), entry.stream().streamId());
+                session.getChannels().addClientUniStream(clientStream);
+                entry.forwarder().setClientStream(clientStream);
+            }
+        }).addListener(future -> {
+            if (future.isSuccess()) {
+                // Create next stream sequentially to preserve order
+                createClientUniStreamSequential(session, clientChannel, entries, index + 1);
+            } else {
+                LOGGER.error("Session {}: Failed to create client uni-stream for backend stream {}",
+                        session.getSessionId(), entry.stream().streamId(), future.cause());
+                session.disconnect("Failed to create streaming channels");
+            }
+        });
     }
 
     private void onConnected(

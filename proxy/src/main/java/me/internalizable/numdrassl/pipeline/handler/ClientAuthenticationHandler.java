@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Handles the client authentication flow with the proxy.
@@ -193,7 +192,8 @@ public final class ClientAuthenticationHandler {
 
     private void handleServerAccessToken(String serverAccessToken) {
         if (serverAccessToken == null) {
-            LOGGER.error("Session {}: Failed to exchange server auth grant", session.getSessionId());
+            LOGGER.error("Session {}: Failed to exchange server auth grant — " +
+                    "check ClientAuthHandler logs for HTTP response details", session.getSessionId());
             session.disconnect("Server authentication failed");
             return;
         }
