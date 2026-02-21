@@ -181,6 +181,14 @@ public final class BackendPacketHandler extends SimpleChannelInboundHandler<Obje
     }
 
     private void handleClientReferral(ClientReferral referral) {
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Session {}: ClientReferral received - hostTo={}, dataLen={}, data={}",
+                    session.getSessionId(),
+                    referral.hostTo != null ? referral.hostTo.host + ":" + referral.hostTo.port : "null",
+                    referral.data != null ? referral.data.length : 0,
+                    referral.data != null ? new String(referral.data, StandardCharsets.UTF_8) : "null");
+        }
+
         if (isBackendInitiatedTransfer(referral.data)) {
             handleBackendInitiatedTransfer(referral);
             return;
@@ -192,7 +200,23 @@ public final class BackendPacketHandler extends SimpleChannelInboundHandler<Obje
     }
 
     private boolean isBackendInitiatedTransfer(byte[] data) {
-        return data != null && Arrays.equals(data, BACKEND_TRANSFER_MARKER);
+        if (data == null) {
+            return false;
+        }
+        // Exact match
+        if (Arrays.equals(data, BACKEND_TRANSFER_MARKER)) {
+            return true;
+        }
+        // Prefix match — Hytale may wrap referral data with additional metadata
+        if (data.length >= BACKEND_TRANSFER_MARKER.length) {
+            for (int i = 0; i < BACKEND_TRANSFER_MARKER.length; i++) {
+                if (data[i] != BACKEND_TRANSFER_MARKER[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
     }
 
     private void handleBackendInitiatedTransfer(ClientReferral referral) {
