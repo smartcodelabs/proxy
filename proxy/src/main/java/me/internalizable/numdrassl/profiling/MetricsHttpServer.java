@@ -2,6 +2,8 @@ package me.internalizable.numdrassl.profiling;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import me.internalizable.numdrassl.api.Numdrassl;
+import me.internalizable.numdrassl.api.ProxyServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,6 +82,7 @@ public final class MetricsHttpServer {
         server.createContext("/stats", this::handleStats);
         server.createContext("/history", this::handleHistory);
         server.createContext("/report", this::handleReport);
+        server.createContext("/playercount", this::handlePlayerCount);
         server.createContext("/", this::handleRoot);
 
         server.start();
@@ -91,6 +94,7 @@ public final class MetricsHttpServer {
         LOGGER.info("  /stats    - Real-time stats dashboard");
         LOGGER.info("  /history  - Historical data & peaks");
         LOGGER.info("  /report   - Shareable text report");
+        LOGGER.info("  /playercount - Player count (JSON)");
     }
 
     /**
@@ -141,6 +145,41 @@ public final class MetricsHttpServer {
 
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
         sendResponse(exchange, 200, "application/json; charset=utf-8", response);
+    }
+
+    private void handlePlayerCount(HttpExchange exchange) throws IOException {
+        if (!"GET".equals(exchange.getRequestMethod())) {
+            sendResponse(exchange, 405, CONTENT_TYPE_TEXT, "Method Not Allowed");
+            return;
+        }
+
+        int local;
+        int global;
+        boolean clusterEnabled;
+
+        if (Numdrassl.isInitialized()) {
+            ProxyServer proxy = Numdrassl.getProxy();
+            local = proxy.getPlayerCount();
+            global = proxy.getGlobalPlayerCount();
+            clusterEnabled = proxy.getClusterManager().getProxyCount() > 1;
+        } else {
+            // API not yet initialized — fall back to metrics singleton
+            ProxyMetrics.MetricsSnapshot snapshot = ProxyMetrics.getInstance().createSnapshot();
+            local = (int) snapshot.activeSessions();
+            global = local;
+            clusterEnabled = false;
+        }
+
+        String json = """
+            {
+              "local": %d,
+              "global": %d,
+              "clusterEnabled": %s,
+              "timestamp": %d
+            }
+            """.formatted(local, global, clusterEnabled, System.currentTimeMillis());
+
+        sendResponse(exchange, 200, "application/json; charset=utf-8", json);
     }
 
     private void handleStats(HttpExchange exchange) throws IOException {
@@ -635,6 +674,7 @@ public final class MetricsHttpServer {
                     <li><a href="/report">/report</a> - Shareable text report</li>
                     <li><a href="/metrics">/metrics</a> - Prometheus scrape endpoint</li>
                     <li><a href="/health">/health</a> - Health check (JSON)</li>
+                    <li><a href="/playercount">/playercount</a> - <span class="highlight">Player count (JSON)</span></li>
                 </ul>
             </body>
             </html>
