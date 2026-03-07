@@ -148,6 +148,8 @@ public final class BackendConnector {
         } catch (Exception e) {
             LOGGER.warn("Could not compute certificate fingerprint", e);
         }
+
+        initiateConnection(session, targetBackend, connectPacket, false);
     }
 
     // ==================== Connection ====================
@@ -392,7 +394,7 @@ public final class BackendConnector {
                         session.getSessionId(), entry.stream().streamId(), future.cause());
                 session.disconnect("Failed to create streaming channels");
             }
-        });
+        };
     }
 
     private void onConnected(
